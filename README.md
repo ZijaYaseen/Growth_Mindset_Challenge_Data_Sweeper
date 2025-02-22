@@ -8,12 +8,7 @@
 - [Features](#features)
 - [Purpose & Benefits](#purpose--benefits)
 - [How It Works](#how-it-works)
-- [Installation & Setup](#installation--setup)
-- [Usage](#usage)
-- [Technologies Used](#technologies-used)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact](#contact)
+
 
 ## Introduction
 
