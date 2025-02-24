@@ -9,9 +9,6 @@
 - [Purpose & Benefits](#purpose--benefits)
 - [How It Works](#how-it-works)
 - [Live Demo](#live-demo)
-- [Installation](#installation)
-- [Usage](#usage)
-- [License](#license)
 
 ## Introduction
 
