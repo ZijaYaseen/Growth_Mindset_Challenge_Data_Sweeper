@@ -5,5 +5,5 @@ uv
 docx2pdf 
 pdf2docx 
 fpdf 
-pywin32
+pywin32; platform_system=="Windows"
 pdfplumber 
