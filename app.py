@@ -64,7 +64,7 @@ Use the sidebar links to switch between the conversion tool and detailed user do
 if current_page == "documentation":
     st.header("Data Sweeper Advanced - Detailed User Documentation")
     st.markdown("""
-    ## Introduction
+                ## Introduction
     **Data Sweeper Advanced** is a comprehensive file conversion tool designed to simplify the process of converting your documents between multiple formats. Whether you need to transform CSV files to Excel, convert PDFs to editable Word documents, or extract tables from PDFs into CSV, this tool provides a seamless solution.
 
     ## Purpose and Benefits
