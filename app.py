@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from io import BytesIO
 from fpdf import FPDF
+import pdfplumber  # For PDF to CSV conversion without Java
 
 ############################
 # Uniform Row Table Helpers
@@ -13,7 +14,7 @@ def draw_uniform_row(pdf, row_data, col_widths, line_height=5):
     1) Pre-split each cell's text into wrapped lines (using split_only=True).
     2) Determine the max number of lines among all columns in this row.
     3) Draw a rectangle for each column spanning the row height.
-    4) Print each line of text inside that rectangle, so columns remain aligned.
+    4) Print each line of text inside that rectangle so that columns remain aligned.
     """
     # Pre-split each cell's text
     splitted_lines = []
@@ -28,7 +29,7 @@ def draw_uniform_row(pdf, row_data, col_widths, line_height=5):
         )
         splitted_lines.append(lines)
 
-    # Determine max lines for this row
+    # Determine the maximum number of lines for this row
     max_lines = max(len(lines) for lines in splitted_lines)
     row_height = max_lines * line_height
 
@@ -36,7 +37,7 @@ def draw_uniform_row(pdf, row_data, col_widths, line_height=5):
     x_start = pdf.get_x()
     y_start = pdf.get_y()
 
-    # Draw rectangles for each column (one per cell)
+    # Draw rectangles for each column
     current_x = x_start
     for width in col_widths:
         pdf.rect(current_x, y_start, width, row_height)
@@ -47,28 +48,31 @@ def draw_uniform_row(pdf, row_data, col_widths, line_height=5):
         pdf.set_xy(x_start, y_start + line_index * line_height)
         for i, col_lines in enumerate(splitted_lines):
             text_line = col_lines[line_index] if line_index < len(col_lines) else ""
+            # Fix potential encoding issues by replacing non-latin1 characters
+            text_line = text_line.encode('latin1', 'replace').decode('latin1')
             pdf.cell(col_widths[i], line_height, text_line, border=0, ln=0)
         pdf.ln(line_height)
 
-    # Move cursor down to next row
+    # Move the cursor down to the next row
     pdf.set_xy(x_start, y_start + row_height)
 
 def draw_uniform_table(pdf, df, line_height=5):
     """
-    Creates a new page (landscape, A4), sets a small font,
+    Creates a new page in landscape (A4) with a small font,
     calculates column widths, and draws the table from the DataFrame with uniform row heights.
     """
     pdf.set_auto_page_break(auto=True, margin=10)
-    pdf.add_page()
+    pdf.add_page()  # Orientation and format are set in the constructor.
     pdf.set_font("Arial", size=7)
 
     col_count = len(df.columns)
-    page_width = pdf.w - 20  # account for margins
+    page_width = pdf.w - 20  # account for left/right margins
     col_width = page_width / col_count
     col_widths = [col_width] * col_count
 
     # Draw header row
     draw_uniform_row(pdf, list(df.columns), col_widths, line_height=line_height)
+
     # Draw each data row
     for _, row_data in df.iterrows():
         draw_uniform_row(pdf, list(row_data), col_widths, line_height=line_height)
@@ -125,7 +129,7 @@ Welcome to **Data Sweeper Advanced** – your one-stop tool for converting files
 - **CSV/Excel → PDF** (with uniform row heights and multi-line wrapping)
 - **Word → PDF**
 - **PDF → Word**
-- **PDF → CSV**
+- **PDF → CSV** (using pdfplumber, no Java required)
 
 Use the sidebar links to switch between the conversion tool and detailed user documentation.
 """)
@@ -134,9 +138,57 @@ if current_page == "documentation":
     st.header("Data Sweeper Advanced - Detailed User Documentation")
     st.markdown("""
     ## Introduction
-    **Data Sweeper Advanced** is a comprehensive file conversion tool designed to simplify
-    the process of converting your documents between multiple formats...
-    (Your documentation content here)
+    **Data Sweeper Advanced** is a comprehensive file conversion tool designed to simplify the process of converting your documents between multiple formats. Whether you need to transform CSV files to Excel, convert PDFs to editable Word documents, or extract tables from PDFs into CSV, this tool provides a seamless solution.
+    
+    ## Purpose and Benefits
+    - **Ease of Use:** The tool provides an intuitive interface that lets you perform conversions with just a few clicks.
+    - **Versatility:** Supports multiple conversions such as CSV ⇄ Excel, CSV/Excel to PDF, Word to PDF, PDF to Word, and PDF to CSV.
+    - **Time-Saving:** Automates the conversion process, eliminating the need for manual reformatting.
+    - **Accessibility:** Built on Streamlit, it runs directly in your browser, making it accessible without complex installations.
+    - **Open-Source:** Leverages popular Python libraries, ensuring reliability and community support.
+    
+    ## How to Use Data Sweeper Advanced
+    Follow these simple steps to convert your files:
+    
+    ### 1. Navigation
+    - **Sidebar Links:**  
+      Use the **NAV BAR** on the left to switch between the **Converter** and **Documentation** pages.  
+      - **Converter:** Perform your file conversions.
+      - **Documentation:** Read this guide for detailed instructions.
+    
+    ### 2. Select a Conversion Option
+    - On the **Converter** page, choose your desired conversion type from the dropdown menu. For example:
+      - **CSV to Excel:** Converts CSV files into Excel spreadsheets.
+      - **Excel to CSV:** Converts Excel files into CSV format.
+      - **CSV/Excel to PDF:** Converts tabular data into a formatted PDF document.
+      - **Word to PDF:** Converts Word documents (.docx) into PDFs.
+      - **PDF to Word:** Converts PDF files into editable Word documents.
+      - **PDF to CSV:** Extracts tables from PDF files and saves them as CSV.
+    
+    ### 3. Upload Your File
+    - After selecting a conversion option, an upload box will appear.
+    - **Note:** Ensure that you upload a file with the correct format for your chosen conversion (e.g., CSV for "CSV to Excel").
+    
+    ### 4. Preview and Convert
+    - Once a file is uploaded, a preview (such as the first few rows of data) is displayed.
+    - Click the conversion button to process the file. The tool will perform the conversion using reliable libraries and methods.
+    
+    ### 5. Download Your Converted File
+    - After a successful conversion, a **Download** button will appear.
+    - Click the button to save your newly converted file to your device.
+    
+    ## Why Was Data Sweeper Advanced Built?
+    This tool was created to address common file conversion challenges:
+    - **Simplifying Workflow:** Many users face difficulties when converting files between formats manually. Data Sweeper Advanced streamlines this process.
+    - **Integration:** By combining multiple conversion functionalities in one application, it reduces the need for multiple tools.
+    - **Reliability:** Built using well-established Python libraries, it offers dependable performance and accurate conversions.
+    
+    ## Additional Notes
+    - **File Compatibility:** Always verify that your file is in the correct format before uploading.
+    - **Error Handling:** If an error occurs during conversion, the app will display an error message with suggestions for troubleshooting.
+    - **Future Updates:** The tool is designed to be extendable. Future updates may include additional conversion options and enhanced features.
+    
+    Enjoy hassle-free file conversions with Data Sweeper Advanced!
     """)
 else:
     st.header("Data Sweeper Advanced - Converter")
@@ -145,8 +197,8 @@ else:
     
     * **CSV to Excel**
     * **Excel to CSV**
-    * **CSV to PDF** (with uniform row heights, multi-line wrapping)
-    * **Excel to PDF** (with uniform row heights, multi-line wrapping)
+    * **CSV to PDF** (with uniform row heights and multi-line wrapping)
+    * **Excel to PDF** (with uniform row heights and multi-line wrapping)
     * **Word to PDF**
     * **PDF to Word**
     * **PDF to CSV** (using pdfplumber, no Java required)
@@ -162,7 +214,7 @@ else:
         "PDF to CSV"
     ])
     
-    # File Uploader based on conversion option
+    # File Uploader based on option
     if conversion_option in ["CSV to Excel", "CSV to PDF"]:
         uploaded_file = st.file_uploader("Upload your CSV file:", type=["csv"])
     elif conversion_option in ["Excel to CSV", "Excel to PDF"]:
@@ -318,18 +370,16 @@ else:
                     import pdfplumber
                     with open("temp.pdf", "wb") as f:
                         f.write(uploaded_file.getbuffer())
-                    # Open PDF with pdfplumber
+                    # Open PDF using pdfplumber
                     with pdfplumber.open("temp.pdf") as pdf:
                         tables = []
                         for page in pdf.pages:
                             table = page.extract_table()
                             if table:
-                                # Assume the first row is header
                                 df_table = pd.DataFrame(table[1:], columns=table[0])
                                 tables.append(df_table)
                     if tables:
-                        # Use the first table for simplicity (or merge as needed)
-                        df_result = tables[0]
+                        df_result = tables[0]  # Use the first table for simplicity
                         st.subheader("Extracted Table Preview:")
                         st.dataframe(df_result.head())
                         buffer = BytesIO()
