@@ -2,3 +2,7 @@ openpyxl
 streamlit
 pandas
 uv
+docx2pdf 
+pdf2docx 
+fpdf 
+tabula-py
