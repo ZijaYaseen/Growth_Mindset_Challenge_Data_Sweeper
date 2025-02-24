@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import os
+import platform
+import subprocess
 from io import BytesIO
 from fpdf import FPDF
 import pdfplumber  # For PDF to CSV conversion without Java
@@ -28,12 +30,12 @@ def draw_uniform_row(pdf, row_data, col_widths, line_height=5):
             split_only=True
         )
         splitted_lines.append(lines)
-
-    # Determine the maximum number of lines for this row
+    
+    # Determine maximum number of lines for the row
     max_lines = max(len(lines) for lines in splitted_lines)
     row_height = max_lines * line_height
 
-    # Store starting X/Y
+    # Save starting X/Y
     x_start = pdf.get_x()
     y_start = pdf.get_y()
 
@@ -48,7 +50,7 @@ def draw_uniform_row(pdf, row_data, col_widths, line_height=5):
         pdf.set_xy(x_start, y_start + line_index * line_height)
         for i, col_lines in enumerate(splitted_lines):
             text_line = col_lines[line_index] if line_index < len(col_lines) else ""
-            # Fix potential encoding issues by replacing non-latin1 characters
+            # Replace non-latin1 characters if needed
             text_line = text_line.encode('latin1', 'replace').decode('latin1')
             pdf.cell(col_widths[i], line_height, text_line, border=0, ln=0)
         pdf.ln(line_height)
@@ -76,6 +78,25 @@ def draw_uniform_table(pdf, df, line_height=5):
     # Draw each data row
     for _, row_data in df.iterrows():
         draw_uniform_row(pdf, list(row_data), col_widths, line_height=line_height)
+
+############################
+# Word to PDF Conversion (Cross-Platform)
+############################
+
+def convert_docx_to_pdf(input_path, output_path):
+    """
+    Cross-platform Word to PDF conversion.
+    - Windows: Uses docx2pdf.
+    - Non-Windows: Uses LibreOffice in headless mode.
+    """
+    if platform.system() == "Windows":
+        from docx2pdf import convert
+        convert(input_path, output_path)
+    else:
+        # Ensure LibreOffice is installed in the non-Windows environment.
+        output_dir = os.path.dirname(os.path.abspath(output_path))
+        command = ["libreoffice", "--headless", "--convert-to", "pdf", "--outdir", output_dir, input_path]
+        subprocess.run(command, check=True)
 
 ############################
 # Streamlit App Starts Here
@@ -152,7 +173,7 @@ if current_page == "documentation":
     
     ### 1. Navigation
     - **Sidebar Links:**  
-      Use the **NAV BAR** on the left to switch between the **Converter** and **Documentation** pages.  
+      Use the **NAV BAR** on the left to switch between the **Converter** and **Documentation** pages.
       - **Converter:** Perform your file conversions.
       - **Documentation:** Read this guide for detailed instructions.
     
@@ -214,7 +235,7 @@ else:
         "PDF to CSV"
     ])
     
-    # File Uploader based on option
+    # File Uploader based on conversion option
     if conversion_option in ["CSV to Excel", "CSV to PDF"]:
         uploaded_file = st.file_uploader("Upload your CSV file:", type=["csv"])
     elif conversion_option in ["Excel to CSV", "Excel to PDF"]:
@@ -229,7 +250,7 @@ else:
     if uploaded_file:
         st.write(f"**Uploaded File:** {uploaded_file.name} | Size: {uploaded_file.size / 1024:.2f} KB")
         
-        # --- CSV to Excel ---
+        # --- CSV to Excel Conversion ---
         if conversion_option == "CSV to Excel":
             with st.spinner("Converting CSV to Excel... Please wait."):
                 try:
@@ -252,7 +273,7 @@ else:
                                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             st.success("CSV to Excel Conversion Successful!")
         
-        # --- Excel to CSV ---
+        # --- Excel to CSV Conversion ---
         elif conversion_option == "Excel to CSV":
             with st.spinner("Converting Excel to CSV... Please wait."):
                 df = pd.read_excel(uploaded_file)
@@ -267,7 +288,7 @@ else:
                                    mime="text/csv")
             st.success("Excel to CSV Conversion Successful!")
         
-        # --- CSV to PDF (Uniform Row) ---
+        # --- CSV to PDF Conversion ---
         elif conversion_option == "CSV to PDF":
             with st.spinner("Converting CSV to PDF... Please wait."):
                 try:
@@ -291,7 +312,7 @@ else:
                                            mime="application/pdf")
             st.success("CSV to PDF Conversion Successful!")
         
-        # --- Excel to PDF (Uniform Row) ---
+        # --- Excel to PDF Conversion ---
         elif conversion_option == "Excel to PDF":
             with st.spinner("Converting Excel to PDF... Please wait."):
                 df = pd.read_excel(uploaded_file)
@@ -310,20 +331,31 @@ else:
                                        mime="application/pdf")
             st.success("Excel to PDF Conversion Successful!")
         
-        # --- Word to PDF ---
+        # --- Word to PDF Conversion (Cross-Platform) ---
         elif conversion_option == "Word to PDF":
-            from docx2pdf import convert
-            try:
-                import pythoncom
-                pythoncom.CoInitialize()
-            except Exception as e:
-                st.warning("COM initialization failed: " + str(e))
+            # Save the uploaded docx to a temporary file
             with st.spinner("Converting Word to PDF... Please wait."):
                 with open("temp.docx", "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 try:
-                    convert("temp.docx", "converted.pdf")
-                    with open("converted.pdf", "rb") as pdf_file:
+                    output_pdf = "converted.pdf"
+                    if platform.system() == "Windows":
+                        try:
+                            import pythoncom
+                            pythoncom.CoInitialize()
+                        except Exception as e:
+                            st.warning("COM initialization failed: " + str(e))
+                        from docx2pdf import convert
+                        convert("temp.docx", output_pdf)
+                    else:
+                        # Non-Windows: Use LibreOffice headless mode
+                        output_dir = os.path.dirname(os.path.abspath("temp.docx"))
+                        command = ["libreoffice", "--headless", "--convert-to", "pdf", "--outdir", output_dir, "temp.docx"]
+                        subprocess.run(command, check=True)
+                        # LibreOffice names the output same as input but with .pdf extension
+                        output_pdf = os.path.splitext("temp.docx")[0] + ".pdf"
+                    
+                    with open(output_pdf, "rb") as pdf_file:
                         pdf_data = pdf_file.read()
                     st.download_button("Download as PDF",
                                        data=pdf_data,
@@ -331,14 +363,17 @@ else:
                                        mime="application/pdf")
                     st.success("Word to PDF Conversion Successful!")
                 except Exception as e:
-                    st.error(f"Error during conversion: {e}\nMake sure Microsoft Word is installed.")
+                    st.error(f"Error during conversion: {e}\nEnsure Microsoft Word is installed on Windows or LibreOffice on non-Windows.")
                 finally:
                     if os.path.exists("temp.docx"):
                         os.remove("temp.docx")
                     if os.path.exists("converted.pdf"):
                         os.remove("converted.pdf")
+                    # Also remove LibreOffice generated PDF if different
+                    if os.path.exists("temp.pdf"):
+                        os.remove("temp.pdf")
         
-        # --- PDF to Word ---
+        # --- PDF to Word Conversion ---
         elif conversion_option == "PDF to Word":
             from pdf2docx import Converter
             with st.spinner("Converting PDF to Word... Please wait."):
@@ -363,7 +398,7 @@ else:
                     if os.path.exists("converted.docx"):
                         os.remove("converted.docx")
         
-        # --- PDF to CSV (Using pdfplumber, no Java required) ---
+        # --- PDF to CSV Conversion (Using pdfplumber, no Java required) ---
         elif conversion_option == "PDF to CSV":
             with st.spinner("Converting PDF to CSV... Please wait."):
                 try:
