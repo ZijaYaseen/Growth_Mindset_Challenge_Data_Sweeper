@@ -10,12 +10,11 @@ from fpdf import FPDF
 
 def draw_uniform_row(pdf, row_data, col_widths, line_height=5):
     """
-    1) Pre-split each cell's text into wrapped lines (split_only=True).
-    2) Find the max number of lines (max_lines) among all columns for this row.
-    3) For each column, draw a single rectangle that spans row_height = max_lines * line_height.
+    1) Pre-split each cell's text into wrapped lines (using split_only=True).
+    2) Determine the max number of lines among all columns in this row.
+    3) Draw a rectangle for each column spanning the row height.
     4) Print each line of text inside that rectangle, so columns remain aligned.
     """
-
     # Pre-split each cell's text
     splitted_lines = []
     for i, cell_text in enumerate(row_data):
@@ -33,52 +32,46 @@ def draw_uniform_row(pdf, row_data, col_widths, line_height=5):
     max_lines = max(len(lines) for lines in splitted_lines)
     row_height = max_lines * line_height
 
-    # Store the starting X/Y
+    # Store starting X/Y
     x_start = pdf.get_x()
     y_start = pdf.get_y()
 
-    # Draw rectangles for each column
-    # so the entire row has a top/bottom border, and vertical borders for columns.
+    # Draw rectangles for each column (one per cell)
     current_x = x_start
-    for i in range(len(col_widths)):
-        pdf.rect(current_x, y_start, col_widths[i], row_height)
-        current_x += col_widths[i]
+    for width in col_widths:
+        pdf.rect(current_x, y_start, width, row_height)
+        current_x += width
 
-    # Now, print the text lines inside each rectangle
+    # Print the text lines inside each rectangle line by line
     for line_index in range(max_lines):
-        # Start each line at the left margin of this row
         pdf.set_xy(x_start, y_start + line_index * line_height)
         for i, col_lines in enumerate(splitted_lines):
             text_line = col_lines[line_index] if line_index < len(col_lines) else ""
-            # Print a single line in this column
             pdf.cell(col_widths[i], line_height, text_line, border=0, ln=0)
         pdf.ln(line_height)
 
-    # Move the cursor down to the next row
+    # Move cursor down to next row
     pdf.set_xy(x_start, y_start + row_height)
-
 
 def draw_uniform_table(pdf, df, line_height=5):
     """
-    Creates a new page (landscape, A4), sets small font,
-    calculates column widths, and draws the table from a DataFrame with uniform row heights.
+    Creates a new page (landscape, A4), sets a small font,
+    calculates column widths, and draws the table from the DataFrame with uniform row heights.
     """
     pdf.set_auto_page_break(auto=True, margin=10)
     pdf.add_page()
     pdf.set_font("Arial", size=7)
 
     col_count = len(df.columns)
-    page_width = pdf.w - 20  # account for left/right margins
+    page_width = pdf.w - 20  # account for margins
     col_width = page_width / col_count
     col_widths = [col_width] * col_count
 
-    # 1) Draw header row
+    # Draw header row
     draw_uniform_row(pdf, list(df.columns), col_widths, line_height=line_height)
-
-    # 2) Draw each data row
+    # Draw each data row
     for _, row_data in df.iterrows():
         draw_uniform_row(pdf, list(row_data), col_widths, line_height=line_height)
-
 
 ############################
 # Streamlit App Starts Here
@@ -118,8 +111,7 @@ st.sidebar.markdown(
         text-decoration: underline;
     }
     </style>
-    """,
-    unsafe_allow_html=True
+    """, unsafe_allow_html=True
 )
 st.sidebar.markdown("<div class='nav-header'>NAV BAR</div>", unsafe_allow_html=True)
 st.sidebar.markdown("[Files Converter](?page=converter)", unsafe_allow_html=True)
@@ -130,7 +122,7 @@ st.title("Data Sweeper Advanced")
 st.write("""
 Welcome to **Data Sweeper Advanced** – your one-stop tool for converting files between various formats:
 - **CSV ⇄ Excel**
-- **CSV/Excel → PDF** (uniform row heights, multi-line wrapping, no extra lines!)
+- **CSV/Excel → PDF** (with uniform row heights and multi-line wrapping)
 - **Word → PDF**
 - **PDF → Word**
 - **PDF → CSV**
@@ -153,11 +145,11 @@ else:
     
     * **CSV to Excel**
     * **Excel to CSV**
-    * **CSV to PDF** (uniform row heights, multi-line wrap)
-    * **Excel to PDF** (uniform row heights, multi-line wrap)
+    * **CSV to PDF** (with uniform row heights, multi-line wrapping)
+    * **Excel to PDF** (with uniform row heights, multi-line wrapping)
     * **Word to PDF**
     * **PDF to Word**
-    * **PDF to CSV**
+    * **PDF to CSV** (using pdfplumber, no Java required)
     """)
     
     conversion_option = st.selectbox("Conversion Options", [
@@ -169,8 +161,8 @@ else:
         "PDF to Word",
         "PDF to CSV"
     ])
-
-    # File Uploader
+    
+    # File Uploader based on conversion option
     if conversion_option in ["CSV to Excel", "CSV to PDF"]:
         uploaded_file = st.file_uploader("Upload your CSV file:", type=["csv"])
     elif conversion_option in ["Excel to CSV", "Excel to PDF"]:
@@ -181,11 +173,11 @@ else:
         uploaded_file = st.file_uploader("Upload your PDF file:", type=["pdf"])
     else:
         uploaded_file = None
-
+    
     if uploaded_file:
         st.write(f"**Uploaded File:** {uploaded_file.name} | Size: {uploaded_file.size / 1024:.2f} KB")
-
-        # CSV to Excel
+        
+        # --- CSV to Excel ---
         if conversion_option == "CSV to Excel":
             with st.spinner("Converting CSV to Excel... Please wait."):
                 try:
@@ -207,8 +199,8 @@ else:
                                            file_name="converted.xlsx",
                                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             st.success("CSV to Excel Conversion Successful!")
-
-        # Excel to CSV
+        
+        # --- Excel to CSV ---
         elif conversion_option == "Excel to CSV":
             with st.spinner("Converting Excel to CSV... Please wait."):
                 df = pd.read_excel(uploaded_file)
@@ -222,8 +214,8 @@ else:
                                    file_name="converted.csv",
                                    mime="text/csv")
             st.success("Excel to CSV Conversion Successful!")
-
-        # CSV to PDF (Uniform Row)
+        
+        # --- CSV to PDF (Uniform Row) ---
         elif conversion_option == "CSV to PDF":
             with st.spinner("Converting CSV to PDF... Please wait."):
                 try:
@@ -246,8 +238,8 @@ else:
                                            file_name="converted.pdf",
                                            mime="application/pdf")
             st.success("CSV to PDF Conversion Successful!")
-
-        # Excel to PDF (Uniform Row)
+        
+        # --- Excel to PDF (Uniform Row) ---
         elif conversion_option == "Excel to PDF":
             with st.spinner("Converting Excel to PDF... Please wait."):
                 df = pd.read_excel(uploaded_file)
@@ -265,8 +257,8 @@ else:
                                        file_name="converted.pdf",
                                        mime="application/pdf")
             st.success("Excel to PDF Conversion Successful!")
-
-        # Word to PDF
+        
+        # --- Word to PDF ---
         elif conversion_option == "Word to PDF":
             from docx2pdf import convert
             try:
@@ -281,7 +273,7 @@ else:
                     convert("temp.docx", "converted.pdf")
                     with open("converted.pdf", "rb") as pdf_file:
                         pdf_data = pdf_file.read()
-                    st.download_button("Download PDF",
+                    st.download_button("Download as PDF",
                                        data=pdf_data,
                                        file_name="converted.pdf",
                                        mime="application/pdf")
@@ -293,8 +285,8 @@ else:
                         os.remove("temp.docx")
                     if os.path.exists("converted.pdf"):
                         os.remove("converted.pdf")
-
-        # PDF to Word
+        
+        # --- PDF to Word ---
         elif conversion_option == "PDF to Word":
             from pdf2docx import Converter
             with st.spinner("Converting PDF to Word... Please wait."):
@@ -318,21 +310,30 @@ else:
                         os.remove("temp.pdf")
                     if os.path.exists("converted.docx"):
                         os.remove("converted.docx")
-
-        # PDF to CSV
+        
+        # --- PDF to CSV (Using pdfplumber, no Java required) ---
         elif conversion_option == "PDF to CSV":
             with st.spinner("Converting PDF to CSV... Please wait."):
                 try:
-                    import tabula
+                    import pdfplumber
                     with open("temp.pdf", "wb") as f:
                         f.write(uploaded_file.getbuffer())
-                    dfs = tabula.read_pdf("temp.pdf", pages='all', multiple_tables=True)
-                    if dfs:
-                        df = dfs[0]
+                    # Open PDF with pdfplumber
+                    with pdfplumber.open("temp.pdf") as pdf:
+                        tables = []
+                        for page in pdf.pages:
+                            table = page.extract_table()
+                            if table:
+                                # Assume the first row is header
+                                df_table = pd.DataFrame(table[1:], columns=table[0])
+                                tables.append(df_table)
+                    if tables:
+                        # Use the first table for simplicity (or merge as needed)
+                        df_result = tables[0]
                         st.subheader("Extracted Table Preview:")
-                        st.dataframe(df.head())
+                        st.dataframe(df_result.head())
                         buffer = BytesIO()
-                        df.to_csv(buffer, index=False)
+                        df_result.to_csv(buffer, index=False)
                         buffer.seek(0)
                         st.download_button("Download as CSV",
                                            data=buffer,

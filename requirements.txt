@@ -5,5 +5,5 @@ uv
 docx2pdf 
 pdf2docx 
 fpdf 
-tabula-py
 pywin32
+pdfplumber 
