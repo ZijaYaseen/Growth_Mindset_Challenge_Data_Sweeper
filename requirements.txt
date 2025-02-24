@@ -1,7 +1,9 @@
+openpyxl
 streamlit
 pandas
-fpdf
-docx2pdf
-pdf2docx
-pdfplumber
+uv
+docx2pdf 
+pdf2docx 
+fpdf 
 pywin32
+pdfplumber 
