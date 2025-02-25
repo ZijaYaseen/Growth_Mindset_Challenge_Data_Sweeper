@@ -146,11 +146,16 @@ st.sidebar.markdown("[Documentation](?page=documentation)", unsafe_allow_html=Tr
 st.title("Data Sweeper Advanced")
 st.write("""
 Welcome to **Data Sweeper Advanced** – your one-stop tool for converting files between various formats:
-- **CSV ⇄ Excel**
-- **CSV/Excel → PDF** (with uniform row heights and multi-line wrapping)
-- **Word → PDF**
-- **PDF → Word**
-- **PDF → CSV** (using pdfplumber, no Java required)
+
+**Select a Conversion Option Below (or simply drag and drop your file to get started):**
+    
+  * **CSV to Excel**
+  * **Excel to CSV**
+  * **CSV to PDF** (with uniform row heights and multi-line wrapping)
+  * **Excel to PDF** (with uniform row heights and multi-line wrapping)
+  * **Word to PDF**
+  * **PDF to Word**
+  * **PDF to CSV**
 
 Use the sidebar links to switch between the conversion tool and detailed user documentation.
 """)
@@ -212,18 +217,7 @@ if current_page == "documentation":
     Enjoy hassle-free file conversions with Data Sweeper Advanced!
     """)
 else:
-    st.header("Data Sweeper Advanced - Converter")
-    st.markdown("""
-    **Select a Conversion Option Below:**
-    
-    * **CSV to Excel**
-    * **Excel to CSV**
-    * **CSV to PDF** (with uniform row heights and multi-line wrapping)
-    * **Excel to PDF** (with uniform row heights and multi-line wrapping)
-    * **Word to PDF**
-    * **PDF to Word**
-    * **PDF to CSV** (using pdfplumber, no Java required)
-    """)
+
     
     conversion_option = st.selectbox("Conversion Options", [
         "CSV to Excel",
